@@ -20,7 +20,7 @@ class Edgy(object):
                     self.redis.expire(k, interval * count)
 
     def mupdate(self, keys):
-        for args in keys.items():
+        for args in keys:
             self.update(*args)
 
     def get(self, key):

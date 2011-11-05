@@ -39,15 +39,16 @@ class Edgy(object):
 
 class CsdCompat(object):
 
-    def __init__(self, host='localhost', port=6379, *args, **kwargs):
+    def __init__(self, host='localhost', port=6379, consolidations=None, *args, **kwargs):
         redis = Redis(host, port)
-        consolidations = {
-            'last_hour': (60, 60),
-            'last_day': (60 * 60, 24),
-            'last_month': (60 * 60 * 24, 30),
-            'last_year': (60 * 60 * 24 * 30, 12),
-            'total': (None, None),
-            }
+        if not consolidations:
+            consolidations = {
+                'last_hour': (60, 60),
+                'last_day': (60 * 60, 24),
+                'last_month': (60 * 60 * 24, 30),
+                'last_year': (60 * 60 * 24 * 30, 12),
+                'total': (None, None),
+                }
         self.edgy = Edgy(redis, consolidations)
 
     def __getattr__(self, method):

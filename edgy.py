@@ -23,19 +23,24 @@ class Edgy(object):
         now = int(time())
         res = {}
         for name, (interval, count) in self.consolidations.items():
-            prefix = '%s_%s/%s' % (self.prefix, name, key)
-            if not interval:
-                res[name] = self.redis.get(prefix)
-            else:
-                base = now / interval
-                keys = ['%s/%s' % (prefix, base + i) for i in range(1 - count, 1)]
-                if not dump:
-                    res[name] = sum([int(i) for i in self.redis.mget(keys) if i])
-                else:
-                    dbase = base + 1 - count
-                    res[name] = [((dbase + idx)* interval,  int(i)) for idx, i in enumerate(self.redis.mget(keys)) if i]
-
+            res[name] = self.get_one(name, key, dump, now)
         return res
+
+    def get_one(self, name, key, dump=False, now=None):
+        if not now:
+            now = int(time())
+        interval, count = self.consolidations[name]
+        prefix = '%s_%s/%s' % (self.prefix, name, key)
+        if not interval:
+            return self.redis.get(prefix)
+        else:
+            base = now / interval
+            keys = ['%s/%s' % (prefix, base + i) for i in range(1 - count, 1)]
+            if not dump:
+                return sum([int(i) for i in self.redis.mget(keys) if i])
+            else:
+                dbase = base + 1 - count
+                return [((dbase + idx)* interval,  int(i)) for idx, i in enumerate(self.redis.mget(keys)) if i]
 
 class CsdCompat(object):
 

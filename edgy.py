@@ -19,11 +19,7 @@ class Edgy(object):
                 if self.redis.incr(k, amount) == amount:
                     self.redis.expire(k, interval * count)
 
-    def mupdate(self, keys):
-        for args in keys:
-            self.update(*args)
-
-    def get(self, key):
+    def get(self, key, dump=False):
         now = int(time())
         res = {}
         for name, (interval, count) in self.consolidations.items():
@@ -33,11 +29,13 @@ class Edgy(object):
             else:
                 base = now / interval
                 keys = ['%s/%s' % (prefix, base + i) for i in range(1 - count, 1)]
-                res[name] = sum([int(i) for i in self.redis.mget(keys) if i])
-        return res
+                if not dump:
+                    res[name] = sum([int(i) for i in self.redis.mget(keys) if i])
+                else:
+                    dbase = base + 1 - count
+                    res[name] = [((dbase + idx)* interval,  int(i)) for idx, i in enumerate(self.redis.mget(keys)) if i]
 
-    def mget(self, keys):
-        dict([(key, self.get(key)) for key in keys])
+        return res
 
 class CsdCompat(object):
 
@@ -46,8 +44,8 @@ class CsdCompat(object):
         consolidations = {
             'last_hour': (60, 60),
             'last_day': (60 * 60, 24),
-            'last_week': (60 * 60 * 24, 7),
             'last_month': (60 * 60 * 24, 30),
+            'last_year': (60 * 60 * 24 * 30, 12),
             'total': (None, None),
             }
         self.edgy = Edgy(redis, consolidations)
@@ -58,12 +56,26 @@ class CsdCompat(object):
         setattr(self, method, func)
         return func
 
+    def mupdate(self, keys):
+        for args in keys:
+            self.update(*args)
+
+    def mget(self, keys):
+        dict([(key, self.get(key)) for key in keys])
+
+    def dump(self ,key):
+        return self.get(key, dump=True)
+
+    def mdump(self, keys):
+        return dict([(key, self.dump(key)) for key in keys])
+
 if __name__ == '__main__':
     from csd import Csd
 
     x = 'x' * 80 + str(time())
 
-    for e in (CsdCompat(), Csd()):
+    for e in (Csd(), CsdCompat()):
+        print x
         s = time()
         for i in range(40000):
             e.update(x, 1)
